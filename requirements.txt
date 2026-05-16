@@ -1,0 +1,15 @@
+torch>=2.0.0
+torchvision
+torchaudio
+transformers
+datasets
+sentencepiece
+sacrebleu
+wandb
+pyyaml
+matplotlib
+pandas
+numpy
+tqdm
+scikit-learn
+pytest
