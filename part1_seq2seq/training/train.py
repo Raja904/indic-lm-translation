@@ -311,9 +311,28 @@ def main():
     best_val_loss = float('inf')
     sp_model = train_dataset.sp
     
+    start_epoch = 1
+    # Auto-resume: Check if a checkpoint exists and load it
+    latest_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_latest.pt")
+    if os.path.exists(latest_ckpt_path):
+        print(f"Found existing checkpoint at {latest_ckpt_path}. Loading weights to resume...")
+        checkpoint = torch.load(latest_ckpt_path, map_location=device)
+        
+        # Load weights (handle DataParallel wrapping)
+        raw_model = model.module if isinstance(model, nn.DataParallel) else model
+        raw_model.load_state_dict(checkpoint["model_state"])
+        
+        # Load optimizer state
+        optimizer.load_state_dict(checkpoint["optimizer_state"])
+        
+        start_epoch = checkpoint["epoch"] + 1
+        if "val_loss" in checkpoint:
+            best_val_loss = checkpoint["val_loss"]
+        print(f"Resuming training from Epoch {start_epoch}!")
+    
     # 6. Training Loop
     print("Starting training loop...")
-    for epoch in range(1, config["epochs"] + 1):
+    for epoch in range(start_epoch, config["epochs"] + 1):
         
         train_loss = train_epoch(model, train_loader, optimizer, criterion, scaler, device, config["clip"])
         val_loss = evaluate_epoch(model, val_loader, criterion, device)
