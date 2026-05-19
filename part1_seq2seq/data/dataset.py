@@ -24,8 +24,9 @@ class TranslationDataset(Dataset):
             
         assert len(hi_lines) == len(mr_lines), "Mismatched number of lines between source and target files."
         
+        from tqdm import tqdm
         self.pairs = []
-        for hi_line, mr_line in zip(hi_lines, mr_lines):
+        for hi_line, mr_line in tqdm(zip(hi_lines, mr_lines), total=len(hi_lines), desc="Tokenizing dataset"):
             # Encode each line
             hi_ids = self.sp.encode(hi_line)
             mr_ids = self.sp.encode(mr_line)
@@ -36,16 +37,14 @@ class TranslationDataset(Dataset):
             
             # Filter out pairs where either side exceeds max_len AFTER encoding
             if len(src_ids) <= max_len and len(tgt_ids) <= max_len:
-                self.pairs.append((
-                    torch.LongTensor(src_ids),
-                    torch.LongTensor(tgt_ids)
-                ))
+                self.pairs.append((src_ids, tgt_ids))
                 
     def __len__(self):
         return len(self.pairs)
         
     def __getitem__(self, idx):
-        return self.pairs[idx]
+        src_ids, tgt_ids = self.pairs[idx]
+        return torch.LongTensor(src_ids), torch.LongTensor(tgt_ids)
 
 
 def collate_fn(batch):

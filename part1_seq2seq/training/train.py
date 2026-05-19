@@ -58,7 +58,10 @@ def train_epoch(model, loader, optimizer, criterion, scaler, device, clip):
     model.train()
     epoch_loss = 0
     
-    for batch in loader:
+    from tqdm import tqdm
+    pbar = tqdm(loader, desc="Training")
+    
+    for batch in pbar:
         src = batch["src"].to(device)
         src_len = batch["src_len"].to(device)
         tgt_in = batch["tgt_in"].to(device)
@@ -70,33 +73,37 @@ def train_epoch(model, loader, optimizer, criterion, scaler, device, clip):
         optimizer.zero_grad()
         
         # Mixed precision context
-        with autocast():
-            # outputs: (batch, tgt_len - 1, vocab_size)
+        is_cuda = device.type == 'cuda'
+        
+        # Only use autocast if CUDA is available
+        if is_cuda:
+            with torch.amp.autocast(device_type='cuda', enabled=True):
+                outputs = model(src, src_len, tgt, teacher_forcing_ratio=config["teacher_forcing_ratio"])
+                output_dim = outputs.shape[-1]
+                outputs = outputs.contiguous().view(-1, output_dim)
+                targets = tgt_out.contiguous().view(-1)
+                loss = criterion(outputs, targets)
+                
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
             outputs = model(src, src_len, tgt, teacher_forcing_ratio=config["teacher_forcing_ratio"])
-            
-            # Flatten outputs and targets for CrossEntropyLoss
             output_dim = outputs.shape[-1]
-            # outputs: (batch * (tgt_len-1), vocab_size)
             outputs = outputs.contiguous().view(-1, output_dim)
-            
-            # targets: (batch * (tgt_len-1))
             targets = tgt_out.contiguous().view(-1)
-            
-            # Calculate loss, ignoring pad_idx
             loss = criterion(outputs, targets)
             
-        # Backpropagate through scaler
-        scaler.scale(loss).backward()
-        
-        # Unscale before clipping gradients
-        scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
-        
-        # Optimizer step
-        scaler.step(optimizer)
-        scaler.update()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
+            optimizer.step()
         
         epoch_loss += loss.item()
+        
+        # Update progress bar
+        pbar.set_postfix({"Loss": f"{loss.item():.4f}"})
         
     return epoch_loss / len(loader)
 
@@ -117,14 +124,20 @@ def evaluate_epoch(model, loader, criterion, device):
             # Reconstruct full tgt tensor for seq2seq
             tgt = torch.cat([tgt_in, tgt_out[:, -1:]], dim=1)
             
-            with autocast():
-                # NO teacher forcing during evaluation
+            is_cuda = device.type == 'cuda'
+            if is_cuda:
+                with torch.amp.autocast(device_type='cuda', enabled=True):
+                    # NO teacher forcing during evaluation
+                    outputs = model(src, src_len, tgt, teacher_forcing_ratio=0.0)
+                    output_dim = outputs.shape[-1]
+                    outputs = outputs.contiguous().view(-1, output_dim)
+                    targets = tgt_out.contiguous().view(-1)
+                    loss = criterion(outputs, targets)
+            else:
                 outputs = model(src, src_len, tgt, teacher_forcing_ratio=0.0)
-                
                 output_dim = outputs.shape[-1]
                 outputs = outputs.contiguous().view(-1, output_dim)
                 targets = tgt_out.contiguous().view(-1)
-                
                 loss = criterion(outputs, targets)
                 
             epoch_loss += loss.item()
@@ -282,7 +295,10 @@ def main():
     # 5. Setup Optimizer, Loss, and Scaler
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
     criterion = nn.CrossEntropyLoss(ignore_index=config["pad_idx"])
-    scaler = GradScaler()
+    
+    # Enable scaler only if we are using CUDA to prevent warnings/issues
+    is_cuda = device.type == 'cuda'
+    scaler = torch.amp.GradScaler('cuda', enabled=is_cuda)
     
     os.makedirs(config["checkpoint_dir"], exist_ok=True)
     best_val_loss = float('inf')
