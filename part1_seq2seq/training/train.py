@@ -326,6 +326,7 @@ def main():
         print(f"Epoch {epoch:02d} | Train Loss: {train_loss:.3f} | Val Loss: {val_loss:.3f} | BLEU: {bleu:.2f} | CHRF: {chrf:.2f}")
         
         # Checkpointing
+        # 1. Save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_best.pt")
@@ -337,6 +338,16 @@ def main():
                 "config": config,
             }, ckpt_path)
             print(f"  --> Saved improved checkpoint to {ckpt_path}")
+            
+        # 2. Always save latest model to resume training if interrupted
+        latest_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_latest.pt")
+        torch.save({
+            "epoch": epoch,
+            "model_state": model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "val_loss": val_loss,
+            "config": config,
+        }, latest_ckpt_path)
             
     print("Training complete")
 
