@@ -39,7 +39,7 @@ class BahdanauAttention(nn.Module):
         
         if mask is not None:
             # Set scores to very small number where mask is True (pad positions)
-            scores = scores.masked_fill(mask == True, -1e10)
+            scores = scores.masked_fill(mask == True, -1e4)
             
         # Compute attention weights via softmax
         # attention_weights shape: (batch, seq_len)

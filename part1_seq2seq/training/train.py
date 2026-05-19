@@ -348,6 +348,14 @@ def main():
             "val_loss": val_loss,
             "config": config,
         }, latest_ckpt_path)
+        
+        # 3. Save metrics to a CSV history file for easy graph plotting later
+        history_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_history.csv")
+        write_header = not os.path.exists(history_path)
+        with open(history_path, "a", encoding="utf-8") as f_hist:
+            if write_header:
+                f_hist.write("epoch,train_loss,val_loss,bleu,chrf\n")
+            f_hist.write(f"{epoch},{train_loss:.6f},{val_loss:.6f},{bleu:.4f},{chrf:.4f}\n")
             
     print("Training complete")
 
