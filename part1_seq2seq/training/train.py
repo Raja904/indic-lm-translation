@@ -21,7 +21,7 @@ config = {
     "hidden_dim": 512,
     "n_layers": 2,
     "dropout": 0.3,
-    "batch_size": 64,
+    "batch_size": 256,
     "epochs": 20,
     "learning_rate": 3e-4,
     "teacher_forcing_ratio": 0.5,
