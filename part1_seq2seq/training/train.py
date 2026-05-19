@@ -287,10 +287,17 @@ def main():
         dropout=config["dropout"], 
         pad_idx=config["pad_idx"]
     )
-    model = Seq2Seq(encoder, decoder, pad_idx=config["pad_idx"], device=device).to(device)
+    model = Seq2Seq(encoder, decoder, pad_idx=config["pad_idx"], device=device)
     
     # Initialize weights
     model.apply(init_weights)
+    
+    # Wrap model in DataParallel if multiple GPUs are available
+    if torch.cuda.device_count() > 1:
+        print(f"Using {torch.cuda.device_count()} GPUs with DataParallel!")
+        model = nn.DataParallel(model)
+        
+    model = model.to(device)
     
     # 5. Setup Optimizer, Loss, and Scaler
     optimizer = optim.Adam(model.parameters(), lr=config["learning_rate"])
@@ -326,13 +333,16 @@ def main():
         print(f"Epoch {epoch:02d} | Train Loss: {train_loss:.3f} | Val Loss: {val_loss:.3f} | BLEU: {bleu:.2f} | CHRF: {chrf:.2f}")
         
         # Checkpointing
+        # Extract clean state_dict (without 'module.' prefix) if model is wrapped in DataParallel
+        raw_model = model.module if isinstance(model, nn.DataParallel) else model
+        
         # 1. Save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_best.pt")
             torch.save({
                 "epoch": epoch,
-                "model_state": model.state_dict(),
+                "model_state": raw_model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "val_loss": val_loss,
                 "config": config,
@@ -343,7 +353,7 @@ def main():
         latest_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_latest.pt")
         torch.save({
             "epoch": epoch,
-            "model_state": model.state_dict(),
+            "model_state": raw_model.state_dict(),
             "optimizer_state": optimizer.state_dict(),
             "val_loss": val_loss,
             "config": config,

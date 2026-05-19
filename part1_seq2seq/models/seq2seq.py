@@ -41,7 +41,7 @@ class Seq2Seq(nn.Module):
         
         # Store predictions
         # outputs shape: (batch, tgt_len - 1, vocab_size)
-        outputs = torch.zeros(batch_size, tgt_len - 1, vocab_size).to(self.device)
+        outputs = torch.zeros(batch_size, tgt_len - 1, vocab_size, device=src.device)
         
         # First decoder input is tgt[:, 0] (which should be <sos> for all)
         # decoder_input shape: (batch,)
