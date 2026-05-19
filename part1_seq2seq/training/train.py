@@ -148,7 +148,10 @@ def decode_greedy(model, src, src_len, sp_model, device, max_decode_len=50):
     """
     Greedy decoding for a single source sentence.
     """
-    model.eval()
+    # Extract underlying raw model to avoid DataParallel batch size 1 splitting errors on multiple GPUs
+    raw_model = model.module if isinstance(model, nn.DataParallel) else model
+    raw_model.eval()
+    
     with torch.no_grad():
         # Create a dummy target tensor filled with pad_idx
         # shape: (1, max_decode_len)
@@ -157,9 +160,9 @@ def decode_greedy(model, src, src_len, sp_model, device, max_decode_len=50):
         # First token must be <sos>
         dummy_tgt[0, 0] = config["sos_idx"]
         
-        # Run model with teacher_forcing=0.0 so it auto-regressively predicts its own next tokens
+        # Run raw model with teacher_forcing=0.0 so it auto-regressively predicts its own next tokens
         # outputs shape: (1, max_decode_len - 1, vocab_size)
-        outputs = model(src, src_len, dummy_tgt, teacher_forcing_ratio=0.0)
+        outputs = raw_model(src, src_len, dummy_tgt, teacher_forcing_ratio=0.0)
         
         # Get argmax over vocab dimension
         # predictions shape: (1, max_decode_len - 1)
