@@ -22,7 +22,7 @@ config = {
     "n_layers": 2,
     "dropout": 0.3,
     "batch_size": 64,
-    "epochs": 10,
+    "epochs": 15,
     "learning_rate": 3e-4,
     "teacher_forcing_ratio": 0.5,
     "clip": 1.0,
