@@ -252,7 +252,7 @@ def main():
     print(f"Using device: {device}")
     
     # 2. Init wandb
-    # wandb.init(project=config["wandb_project"], name=config["experiment_name"], config=config)
+    wandb.init(project=config["wandb_project"], name=config["experiment_name"], config=config)
     
     # 3. Build Datasets and DataLoaders
     print("Loading data...")
@@ -343,14 +343,14 @@ def main():
         # Evaluate metrics on validation subset
         bleu, chrf = compute_bleu_chrf(model, val_loader, sp_model, device, num_batches=10)
         
-        # Log to wandb (uncomment to activate)
-        # wandb.log({
-        #     "train_loss": train_loss,
-        #     "val_loss": val_loss,
-        #     "bleu": bleu,
-        #     "chrf": chrf,
-        #     "epoch": epoch
-        # })
+        # Log to wandb
+        wandb.log({
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "bleu": bleu,
+            "chrf": chrf,
+            "epoch": epoch
+        })
         
         print(f"Epoch {epoch:02d} | Train Loss: {train_loss:.3f} | Val Loss: {val_loss:.3f} | BLEU: {bleu:.2f} | CHRF: {chrf:.2f}")
         
