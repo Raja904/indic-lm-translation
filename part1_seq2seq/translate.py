@@ -126,6 +126,20 @@ def main():
         print(f"\nHindi:   {args.text}")
         print(f"Marathi: {res}\n")
     else:
+        predefined_queries = [
+            "यह एक बहुत अच्छा दिन है।",
+            "मेरा नाम राजीव है।",
+            "मैं स्कूल जा रहा हूँ।",
+            "भारत एक महान देश है।",
+            "आप कैसे हैं?"
+        ]
+        print("\n=== Running Predefined Test Queries ===")
+        for query in predefined_queries:
+            res = translate(query)
+            print(f"Hindi:   {query}")
+            print(f"Marathi: {res}")
+            print("-" * 40)
+            
         print("\nEntering interactive mode. Type 'q' or 'quit' to exit.")
         while True:
             try:
