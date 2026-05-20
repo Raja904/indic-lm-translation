@@ -7,6 +7,7 @@ import sentencepiece as spm
 from part1_seq2seq.models.encoder import Encoder
 from part1_seq2seq.models.decoder import Decoder
 from part1_seq2seq.models.seq2seq import Seq2Seq
+from part1_seq2seq.inference.beam_search import decode_beam_search
 
 # Special token IDs matching TranslationDataset
 PAD_IDX = 0
@@ -24,35 +25,20 @@ DEFAULT_CONFIG = {
     "sp_model": "tokenizer/spm_hi_mr.model",
 }
 
-def decode_greedy(model, src, src_len, sp_model, device, max_decode_len=100):
-    """
-    Greedy decoding to generate translation outputs autoregressively.
-    """
-    model.eval()
-    with torch.no_grad():
-        # Create a dummy target tensor filled with PAD_IDX
-        dummy_tgt = torch.full((1, max_decode_len), PAD_IDX, dtype=torch.long, device=device)
-        dummy_tgt[0, 0] = SOS_IDX
-        
-        # Autoregressively predict tokens (teacher_forcing_ratio=0.0)
-        outputs = model(src, src_len, dummy_tgt, teacher_forcing_ratio=0.0)
-        predictions = outputs.argmax(dim=2)
-        
-        predicted_tokens = []
-        for token_id in predictions[0].tolist():
-            if token_id == EOS_IDX:
-                break
-            if token_id not in [SOS_IDX, PAD_IDX]:
-                predicted_tokens.append(token_id)
-                
-        decoded_string = sp_model.decode(predicted_tokens)
-    return decoded_string
-
 def main():
     parser = argparse.ArgumentParser(description="Translate Hindi to Marathi using trained Seq2Seq model")
     parser.add_argument("--checkpoint", type=str, default="checkpoints/lstm_random_exp_a_best.pt", help="Path to checkpoint file")
     parser.add_argument("--text", type=str, default=None, help="Hindi sentence to translate (optional)")
     parser.add_argument("--sp_model", type=str, default=DEFAULT_CONFIG["sp_model"], help="Path to sentencepiece model")
+    
+    # Beam Search Arguments
+    parser.add_argument("--beam_size", type=int, default=4, help="Beam size for decoding")
+    parser.add_argument("--alpha", type=float, default=0.6, help="Length penalty alpha factor")
+    parser.add_argument("--disable_bigram_blocking", action="store_true", help="Disable no-repeat bigram blocking")
+    parser.add_argument("--repetition_penalty", type=float, default=1.5, help="Repetition penalty for already-generated tokens")
+    parser.add_argument("--temperature", type=float, default=0.8, help="Temperature for decoding logits")
+    parser.add_argument("--note", type=str, default="Beam Search Run", help="Description of this run to write in the output file")
+    
     args = parser.parse_args()
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -116,15 +102,49 @@ def main():
         src = torch.LongTensor(src_ids).unsqueeze(0).to(device)
         src_len = torch.LongTensor([len(src_ids)]).to(device)
         
-        # Generate translation
-        translation = decode_greedy(model, src, src_len, sp, device)
+        # Generate translation using beam search
+        translation = decode_beam_search(
+            model=model,
+            src=src,
+            src_len=src_len,
+            sp_model=sp,
+            device=device,
+            beam_size=args.beam_size,
+            max_decode_len=100,
+            length_penalty_alpha=args.alpha,
+            no_repeat_bigram=not args.disable_bigram_blocking,
+            repetition_penalty=args.repetition_penalty,
+            temperature=args.temperature,
+            pad_idx=PAD_IDX,
+            sos_idx=SOS_IDX,
+            eos_idx=EOS_IDX
+        )
         return translation
         
     # 4. Run Inference
+    output_file = "checkpoints/translations.txt"
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    
+    config_header = (
+        f"\n======================================================================\n"
+        f"RUN NOTE:       {args.note}\n"
+        f"Checkpoint:     {args.checkpoint}\n"
+        f"Configuration:  Beam Size={args.beam_size}, Alpha={args.alpha}, "
+        f"Repetition Penalty={args.repetition_penalty}, Temperature={args.temperature}, "
+        f"Bigram Blocking={not args.disable_bigram_blocking}\n"
+        f"======================================================================\n"
+    )
+    
     if args.text:
         res = translate(args.text)
         print(f"\nHindi:   {args.text}")
         print(f"Marathi: {res}\n")
+        with open(output_file, "a", encoding="utf-8") as f_out:
+            f_out.write(config_header)
+            f_out.write(f"Hindi:   {args.text}\n")
+            f_out.write(f"Marathi: {res}\n")
+            f_out.write("----------------------------------------\n")
+        print(f"Saved translation to: {output_file}")
     else:
         predefined_queries = [
             "यह एक बहुत अच्छा दिन है।",
@@ -133,12 +153,22 @@ def main():
             "भारत एक महान देश है।",
             "आप कैसे हैं?"
         ]
-        print("\n=== Running Predefined Test Queries ===")
-        for query in predefined_queries:
-            res = translate(query)
-            print(f"Hindi:   {query}")
-            print(f"Marathi: {res}")
-            print("-" * 40)
+        
+        # Append config header and run results
+        with open(output_file, "a", encoding="utf-8") as f_out:
+            f_out.write(config_header)
+            print("\n=== Running Predefined Test Queries ===")
+            for query in predefined_queries:
+                res = translate(query)
+                print(f"Hindi:   {query}")
+                print(f"Marathi: {res}")
+                print("-" * 40)
+                
+                f_out.write(f"Hindi:   {query}\n")
+                f_out.write(f"Marathi: {res}\n")
+                f_out.write("----------------------------------------\n")
+                
+        print(f"\nSaved predefined translations to: {output_file}")
             
         print("\nEntering interactive mode. Type 'q' or 'quit' to exit.")
         while True:
@@ -150,6 +180,12 @@ def main():
                     continue
                 mr_text = translate(hi_text)
                 print(f"Marathi: {mr_text}\n")
+                
+                # Append interactive translations to the file
+                with open(output_file, "a", encoding="utf-8") as f_out:
+                    f_out.write(f"Hindi:   {hi_text}\n")
+                    f_out.write(f"Marathi: {mr_text}\n")
+                    f_out.write("----------------------------------------\n")
             except (KeyboardInterrupt, EOFError):
                 break
 

@@ -13,6 +13,7 @@ from part1_seq2seq.data.dataset import TranslationDataset, collate_fn
 from part1_seq2seq.models.encoder import Encoder
 from part1_seq2seq.models.decoder import Decoder
 from part1_seq2seq.models.seq2seq import Seq2Seq
+from part1_seq2seq.inference.beam_search import decode_beam_search
 from torch.utils.data import DataLoader
 
 config = {
@@ -22,8 +23,8 @@ config = {
     "n_layers": 2,
     "dropout": 0.3,
     "batch_size": 64,
-    "epochs": 15,
-    "learning_rate": 3e-4,
+    "epochs": 16,
+    "learning_rate": 1.5e-4,
     "teacher_forcing_ratio": 0.5,
     "clip": 1.0,
     "pad_idx": 0,
@@ -39,6 +40,12 @@ config = {
     "checkpoint_dir": "checkpoints",
     "experiment_name": "lstm_random_exp_a",
     "wandb_project": "adivaani-nmt",
+    # Beam Search Configs
+    "beam_size": 4,
+    "length_penalty_alpha": 0.6,
+    "no_repeat_bigram": True,
+    "repetition_penalty": 1.5,
+    "temperature": 0.8,
 }
 
 def seed_everything(seed=42):
@@ -183,7 +190,7 @@ def decode_greedy(model, src, src_len, sp_model, device, max_decode_len=50):
 
 def compute_bleu_chrf(model, loader, sp_model, device, num_batches=10):
     """
-    Run greedy decode on subset of validation batches to compute BLEU and CHRF.
+    Run beam search decode on subset of validation batches to compute BLEU and CHRF.
     """
     model.eval()
     hypotheses = []
@@ -206,8 +213,23 @@ def compute_bleu_chrf(model, loader, sp_model, device, num_batches=10):
                 src = src_batch[j].unsqueeze(0)
                 src_len = src_len_batch[j].unsqueeze(0)
                 
-                # Get prediction string
-                pred_str = decode_greedy(model, src, src_len, sp_model, device, max_decode_len=50)
+                # Get prediction string using Beam Search
+                pred_str = decode_beam_search(
+                    model=model,
+                    src=src,
+                    src_len=src_len,
+                    sp_model=sp_model,
+                    device=device,
+                    beam_size=config["beam_size"],
+                    max_decode_len=50,
+                    length_penalty_alpha=config["length_penalty_alpha"],
+                    no_repeat_bigram=config["no_repeat_bigram"],
+                    repetition_penalty=config["repetition_penalty"],
+                    temperature=config["temperature"],
+                    pad_idx=config["pad_idx"],
+                    sos_idx=config["sos_idx"],
+                    eos_idx=config["eos_idx"]
+                )
                 hypotheses.append(pred_str)
                 
                 # Extract reference string (stop at <eos>)
@@ -225,7 +247,7 @@ def compute_bleu_chrf(model, loader, sp_model, device, num_batches=10):
         return 0.0, 0.0
         
     # Note: sacrebleu's .score attribute already returns a 0-100 scale.
-    bleu_score = sacrebleu.corpus_bleu(hypotheses, [references]).score
+    bleu_score = sacrebleu.corpus_bleu(hypotheses, [references], force=True).score
     chrf_score = sacrebleu.corpus_chrf(hypotheses, [references]).score
     
     return bleu_score, chrf_score
@@ -327,6 +349,10 @@ def main():
         
         # Load optimizer state
         optimizer.load_state_dict(checkpoint["optimizer_state"])
+        # Override learning rate with the updated value from config
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = config["learning_rate"]
+        print(f"Loaded optimizer state and updated learning rate to {config['learning_rate']}")
         
         start_epoch = checkpoint["epoch"] + 1
         if "val_loss" in checkpoint:
