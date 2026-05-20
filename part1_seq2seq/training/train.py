@@ -334,6 +334,7 @@ def main():
     
     os.makedirs(config["checkpoint_dir"], exist_ok=True)
     best_val_loss = float('inf')
+    best_bleu = 0.0
     sp_model = train_dataset.sp
     
     start_epoch = 1
@@ -357,6 +358,8 @@ def main():
         start_epoch = checkpoint["epoch"] + 1
         if "val_loss" in checkpoint:
             best_val_loss = checkpoint["val_loss"]
+        if "bleu" in checkpoint:
+            best_bleu = checkpoint["bleu"]
         print(f"Resuming training from Epoch {start_epoch}!")
     
     # 6. Training Loop
@@ -384,7 +387,7 @@ def main():
         # Extract clean state_dict (without 'module.' prefix) if model is wrapped in DataParallel
         raw_model = model.module if isinstance(model, nn.DataParallel) else model
         
-        # 1. Save best model
+        # 1. Save best model (by validation loss)
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_best.pt")
@@ -393,19 +396,87 @@ def main():
                 "model_state": raw_model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "val_loss": val_loss,
+                "bleu": bleu,
                 "config": config,
             }, ckpt_path)
-            print(f"  --> Saved improved checkpoint to {ckpt_path}")
+            print(f"  --> Saved improved best validation loss checkpoint to {ckpt_path}")
             
-        # 2. Always save latest model to resume training if interrupted
+        # 2. Save best BLEU model separately
+        if bleu > best_bleu:
+            best_bleu = bleu
+            bleu_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_best_bleu.pt")
+            torch.save({
+                "epoch": epoch,
+                "model_state": raw_model.state_dict(),
+                "optimizer_state": optimizer.state_dict(),
+                "val_loss": val_loss,
+                "bleu": bleu,
+                "config": config,
+            }, bleu_ckpt_path)
+            print(f"  --> Saved improved BLEU checkpoint to {bleu_ckpt_path} (BLEU: {bleu:.2f})")
+            
+        # 3. Save continuation checkpoints individually: lstm_random_exp_a_epoch_X.pt
+        epoch_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_epoch_{epoch}.pt")
+        torch.save({
+            "epoch": epoch,
+            "model_state": raw_model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "val_loss": val_loss,
+            "bleu": bleu,
+            "config": config,
+        }, epoch_ckpt_path)
+        print(f"  --> Saved individual epoch checkpoint to {epoch_ckpt_path}")
+            
+        # 4. Always save latest model to resume training if interrupted
         latest_ckpt_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_latest.pt")
         torch.save({
             "epoch": epoch,
             "model_state": raw_model.state_dict(),
             "optimizer_state": optimizer.state_dict(),
             "val_loss": val_loss,
+            "bleu": bleu,
             "config": config,
         }, latest_ckpt_path)
+        
+        # 5. Save fixed qualitative translations after every epoch using Beam Search
+        predefined_queries = [
+            "यह एक बहुत अच्छा दिन है।",
+            "मेरा नाम राजीव है।",
+            "मैं स्कूल जा रहा हूँ।",
+            "भारत एक महान देश है।",
+            "आप कैसे हैं?"
+        ]
+        samples_path = os.path.join(config["checkpoint_dir"], f"epoch_{epoch}_samples.txt")
+        with open(samples_path, "w", encoding="utf-8") as f_samp:
+            f_samp.write(f"=== Qualitative Samples Epoch {epoch} ===\n\n")
+            for query in predefined_queries:
+                # Format query string to tensor IDs
+                hi_ids = sp_model.encode(query)
+                src_ids = [config["sos_idx"]] + hi_ids + [config["eos_idx"]]
+                src_tensor = torch.LongTensor(src_ids).unsqueeze(0).to(device)
+                src_len_tensor = torch.LongTensor([len(src_ids)]).to(device)
+                
+                # Decode using beam search
+                res = decode_beam_search(
+                    model=model,
+                    src=src_tensor,
+                    src_len=src_len_tensor,
+                    sp_model=sp_model,
+                    device=device,
+                    beam_size=config["beam_size"],
+                    max_decode_len=50,
+                    length_penalty_alpha=config["length_penalty_alpha"],
+                    no_repeat_bigram=config["no_repeat_bigram"],
+                    repetition_penalty=config["repetition_penalty"],
+                    temperature=config["temperature"],
+                    pad_idx=config["pad_idx"],
+                    sos_idx=config["sos_idx"],
+                    eos_idx=config["eos_idx"]
+                )
+                f_samp.write(f"Hindi:   {query}\n")
+                f_samp.write(f"Marathi: {res}\n")
+                f_samp.write("-" * 40 + "\n")
+        print(f"  --> Saved qualitative samples to {samples_path}")
         
         # 3. Save metrics to a CSV history file for easy graph plotting later
         history_path = os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_history.csv")
