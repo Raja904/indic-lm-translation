@@ -24,7 +24,7 @@ except ImportError:
 config = {
     "vocab_size": 16000,
     "hidden_dim": 768,
-    "batch_size": 16,
+    "batch_size": 32,
     "epochs": 4,
     "learning_rate": 5e-5,  # smaller lr, finetuning pretrained weights
     "warmup_steps": 500,
