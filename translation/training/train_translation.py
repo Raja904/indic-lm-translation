@@ -25,7 +25,7 @@ config = {
     "vocab_size": 16000,
     "hidden_dim": 768,
     "batch_size": 16,
-    "epochs": 10,
+    "epochs": 4,
     "learning_rate": 5e-5,  # smaller lr, finetuning pretrained weights
     "warmup_steps": 500,
     "clip": 1.0,

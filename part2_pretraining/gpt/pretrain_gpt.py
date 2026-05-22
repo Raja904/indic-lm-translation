@@ -28,7 +28,7 @@ config = {
     "max_seq_len": 256,
     "dropout": 0.1,
     "batch_size": 32,
-    "epochs": 10,
+    "epochs": 4,
     "learning_rate": 1e-4,
     "warmup_steps": 1000,
     "clip": 1.0,
@@ -224,6 +224,8 @@ def main():
             'scheduler_state_dict': scheduler.state_dict(),
             'scaler_state_dict': scaler.state_dict(),
             'loss': loss.item(),
+            'val_loss': val_loss,
+            'val_perplexity': val_perplexity,
         }, checkpoint_path)
         print(f"Saved epoch checkpoint to {checkpoint_path}")
 
