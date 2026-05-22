@@ -37,6 +37,7 @@ config = {
     "experiment_name": "gpt_clm_pretrain",
     "wandb_project": "adivaani-nmt",
     "train_file": "data/processed/train.mr",
+    "val_file": "data/processed/val.mr",
     "sp_model": "tokenizer/spm_hi_mr.model",
 }
 
@@ -111,17 +112,34 @@ def get_lr_multiplier(step, warmup_steps):
         return float(step) / float(max(1, warmup_steps))
     return 1.0
 
+def evaluate_epoch(model, dataloader, criterion, device, config):
+    model.eval()
+    total_loss = 0
+    with torch.no_grad():
+        for batch in dataloader:
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+            
+            with autocast():
+                logits = model(input_ids, attention_mask=attention_mask)
+                loss = criterion(logits.view(-1, config["vocab_size"]), labels.view(-1))
+            total_loss += loss.item()
+    return total_loss / len(dataloader)
+
 def main():
     seed_everything(42)
     wandb.init(project=config["wandb_project"], name=config["experiment_name"], config=config)
     
     # Dataset and Dataloader
     dataset = CLMDataset(config["train_file"], config["sp_model"], max_seq_len=config["max_seq_len"])
+    val_dataset = CLMDataset(config["val_file"], config["sp_model"], max_seq_len=config["max_seq_len"])
     
     def collate_wrapper(batch):
         return collate_fn_clm(batch, pad_id=config["pad_idx"])
         
     dataloader = DataLoader(dataset, batch_size=config["batch_size"], shuffle=True, collate_fn=collate_wrapper, num_workers=0)
+    val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, collate_fn=collate_wrapper, num_workers=0)
     
     # Initialize Model
     model = GPTModel(
@@ -190,6 +208,12 @@ def main():
                 }, step_ckpt)
                 print(f"Saved mid-epoch checkpoint to {step_ckpt}")
                 
+        # Validation phase
+        val_loss = evaluate_epoch(model, val_dataloader, criterion, device, config)
+        val_perplexity = math.exp(val_loss) if val_loss < 100 else float('inf')
+        print(f"Epoch {epoch} | Train completed | Val Loss: {val_loss:.4f} | Val PPL: {val_perplexity:.4f}")
+        wandb.log({"val_loss": val_loss, "val_perplexity": val_perplexity, "epoch": epoch, "step": global_step})
+
         # Save comprehensive checkpoint per epoch
         checkpoint_path = os.path.join(config["checkpoint_dir"], f"gpt_epoch_{epoch}.pt")
         torch.save({
