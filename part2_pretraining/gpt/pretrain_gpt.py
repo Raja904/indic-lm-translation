@@ -8,6 +8,7 @@ from torch.cuda.amp import autocast, GradScaler
 import sentencepiece as spm
 import wandb
 import sys
+import glob
 
 try:
     from part2_pretraining.gpt.gpt import GPTModel
@@ -166,8 +167,30 @@ def main():
     os.makedirs(config["checkpoint_dir"], exist_ok=True)
     
     global_step = 0
+    start_epoch = 0
     
-    for epoch in range(config["epochs"]):
+    # ===== AUTO-RESUME FROM LATEST CHECKPOINT =====
+    checkpoint_files = glob.glob(os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_epoch_*.pt"))
+    if checkpoint_files:
+        # Get the latest epoch checkpoint
+        checkpoint_path = sorted(checkpoint_files)[-1]
+        print(f"Found latest checkpoint: {checkpoint_path}")
+        
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        scaler.load_state_dict(checkpoint['scaler_state_dict'])
+        
+        start_epoch = checkpoint['epoch'] + 1
+        global_step = checkpoint['global_step']
+        
+        print(f"✅ Resumed training from epoch {start_epoch}, global_step {global_step}")
+    else:
+        print("⚠️ No checkpoints found, starting from epoch 0")
+    
+    for epoch in range(start_epoch, config["epochs"]):
         model.train()
         for batch_idx, batch in enumerate(dataloader):
             input_ids = batch["input_ids"].to(device)
