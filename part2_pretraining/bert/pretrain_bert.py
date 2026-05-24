@@ -206,7 +206,7 @@ def main():
     start_epoch = 0
     
     # ===== AUTO-RESUME FROM LATEST CHECKPOINT =====
-    checkpoint_files = glob.glob(os.path.join(config["checkpoint_dir"], f"{config['experiment_name']}_epoch_*.pt"))
+    checkpoint_files = glob.glob(os.path.join(config["checkpoint_dir"], "bert_epoch_*.pt"))
     if checkpoint_files:
         # Get the latest epoch checkpoint
         checkpoint_path = sorted(checkpoint_files)[-1]
