@@ -30,7 +30,7 @@ config = {
     "max_seq_len": 256,
     "dropout": 0.1,
     "batch_size": 64,
-    "epochs": 6,
+    "epochs": 12,
     "learning_rate": 1e-4,
     "warmup_steps": 1000,
     "clip": 1.0,
