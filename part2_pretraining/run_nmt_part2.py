@@ -91,8 +91,13 @@ def translate(
     ).to(device)
 
     with torch.no_grad():
-        # Encode source with BERT
-        enc = proj(bert(src_ids))          # (1, src_len, 768)
+        # Encode source with BERT (extract hidden states instead of logits)
+        x = bert.token_embedding(src_ids) * math.sqrt(bert.hidden_dim)
+        for layer in bert.layers:
+            x = layer(x)
+        enc = bert.norm(x)
+        
+        enc = proj(enc)          # (1, src_len, 768)
 
         generated = [sos_id]
         for _ in range(max_len):
