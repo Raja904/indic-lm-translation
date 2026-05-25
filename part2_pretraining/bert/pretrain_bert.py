@@ -29,7 +29,7 @@ config = {
     "ffn_dim": 4096,
     "max_seq_len": 256,
     "dropout": 0.1,
-    "batch_size": 64,
+    "batch_size": 32,
     "epochs": 12,
     "learning_rate": 1e-4,
     "warmup_steps": 1000,
