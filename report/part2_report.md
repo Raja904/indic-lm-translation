@@ -84,3 +84,6 @@ As anticipated from a zero-shot bridged architecture without fine-tuning the cro
 1. **Target Language Fluency:** The GPT decoder generates syntactically valid and highly fluent Marathi text. This proves that the autoregressive pretraining phase was highly successful at modeling the target language.
 2. **Source Language Disconnect:** Because the projection layer mapping Hindi representations to Marathi prompt-embeddings wasn't fine-tuned on parallel data, the GPT model essentially receives "random" contextual prompts. It ignores the source sentence's meaning and acts as an unconditioned language model, resulting in zero BLEU.
 3. **Future Work:** To achieve high translation quality, the linear projection bridge (and potentially the top layers of both models) must be fine-tuned on the parallel Hindi-Marathi dataset. However, this experiment successfully demonstrates the architectural integration of two disparate foundational models into a unified generative pipeline.
+
+---
+*Note: Due to file size constraints (~1GB total), the final pretrained model checkpoints (`bert_epoch_5.pt` and `gpt_epoch_8.pt`) are hosted externally on a shared Drive and are available upon request.*
