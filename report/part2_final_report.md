@@ -102,7 +102,7 @@ The assignment required utilizing the pretrained models for translation. Because
 | Integration Challenges | Bridging independent models via soft-prompting is architecturally elegant, but strictly requires cross-lingual fine-tuning to achieve non-zero translation accuracy. |
 
 ### Future Work
-Given a larger compute budget, the immediate next step is to freeze the pretrained BERT and GPT weights and train a dedicated Cross-Attention layer (or fine-tune the linear projection bridge) on the ~215,000 sentence parallel Hindi-Marathi corpus for 5-10 epochs.
+Given a larger compute budget, the immediate next step is to freeze the pretrained BERT and GPT weights and train a dedicated Cross-Attention layer (or fine-tune the linear projection bridge) on the ~200,000 sentence parallel Hindi-Marathi corpus for 5-10 epochs.
 
 ---
 *Note: Due to file size constraints (~2.5GB total), the final pretrained model checkpoints (`bert_epoch_5.pt` and `gpt_epoch_8.pt`) are hosted externally on a shared Drive and are available upon request.*

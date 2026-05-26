@@ -37,7 +37,7 @@ Hindi and Marathi are both Indo-Aryan languages sharing the Devanagari script an
 
 | Split | Sentences | Approx. Tokens (Hindi) |
 | :--- | :---: | :---: |
-| Train | ~215,000 | ~3.5M |
+| Train | ~200,000 | ~3.5M |
 | Validation | ~10,000 | ~160K |
 
 Source: Public Indic NLP parallel corpora covering news, literature, and government domains.
@@ -322,6 +322,7 @@ All reported metrics are computed from actual model outputs. All code was review
 
 ---
 
-*Final checkpoint: `checkpoints/lstm_random_exp_a_epoch_16.pt` — Val Loss: 6.487, BLEU: 7.97, CHRF: 32.41*
+*Final checkpoint used: `checkpoints/lstm_random_exp_a_epoch_16.pt` — Val Loss: 6.487, BLEU: 7.97, CHRF: 32.41*
+*Note: Due to file size constraints (>1GB), this checkpoint model file has been uploaded to the shared drive and is available upon request.*
 *Qualitative evaluation: `data/eval_qualitative.tsv` (45 sentences, 7 categories)*
 *Evaluation script: `scripts/generate_reports_and_plots.py`*
