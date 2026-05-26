@@ -86,4 +86,4 @@ As anticipated from a zero-shot bridged architecture without fine-tuning the cro
 3. **Future Work:** To achieve high translation quality, the linear projection bridge (and potentially the top layers of both models) must be fine-tuned on the parallel Hindi-Marathi dataset. However, this experiment successfully demonstrates the architectural integration of two disparate foundational models into a unified generative pipeline.
 
 ---
-*Note: Due to file size constraints (~1GB total), the final pretrained model checkpoints (`bert_epoch_5.pt` and `gpt_epoch_8.pt`) are hosted externally on a shared Drive and are available upon request.*
+*Note: Due to file size constraints (~2.5GB total), the final pretrained model checkpoints (`bert_epoch_5.pt` and `gpt_epoch_8.pt`) are hosted externally on a shared Drive and are available upon request.*
