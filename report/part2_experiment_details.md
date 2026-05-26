@@ -4,7 +4,7 @@
 - **Platform:** Kaggle Notebooks
 - **Hardware:** 2x T4 GPUs (Parallel)
 - **Framework:** PyTorch with Mixed Precision (AMP)
-- **Time Allocated:** ~12 Hours Total
+- **Time Allocated:** ~12 Hours Total (10 hours for training: 5 hours each for BERT and GPT)
 
 ## 2. Hyperparameters
 | Parameter | BERT Encoder | GPT Decoder |
@@ -22,7 +22,7 @@
 
 ## 3. BERT Pretraining Logs (Masked Language Modeling)
 - **Dataset:** `train.hi` and `val.hi`
-- **Total Training Time:** ~2.5 Hours
+- **Total Training Time:** ~5 Hours
 - **Max Epoch Reached:** Epoch 6 (stopped early due to time constraints)
 - **Checkpoint Strategy:** Saved mid-epoch every 2000 steps, and comprehensive checkpoint at the end of each epoch.
 
@@ -37,7 +37,7 @@
 
 ## 4. GPT Pretraining Logs (Causal Language Modeling)
 - **Dataset:** `train.mr` and `val.mr`
-- **Total Training Time:** ~2.5 Hours
+- **Total Training Time:** ~5 Hours
 - **Max Epoch Reached:** Epoch 9 (crashed due to instability)
 - **Checkpoint Utilized:** Epoch 8
 

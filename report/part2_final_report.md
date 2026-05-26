@@ -40,7 +40,7 @@ Standard Layer Normalization computes both mean and variance. RMSNorm removes th
 The experiments were heavily constrained by available hardware limits. 
 - **Hardware:** Kaggle T4 x2 GPUs
 - **Total Compute Used:** ~12 hours
-- **Model Training Time:** ~5 hours total
+- **Model Training Time:** ~10 hours total (5 hours each for BERT and GPT)
 - **Inference & Debugging Time:** ~2 hours
 - **Limitation:** Due to time limits, BERT pretraining was forced to stop at **Epoch 6**, and GPT was stopped at **Epoch 9**.
 
@@ -82,9 +82,8 @@ The assignment required utilizing the pretrained models for translation. Because
 
 ### 6.2 Qualitative Analysis and Failure Modes
 **Example Output:**
-- **SRC:** "भारत एक महान देश है।"
-- **REF:** "भारत एक महान देश आहे।"
-- **PRED:** "या बैठकीत सहभागी होणाऱ्या 40000 कोटी रुपयांहून अधिक खर्चाच्या 13 प्रकल्पांची पायाभरणी करण्यात आली."
+
+![Inference Example](figures/part2_inference_example.png)
 
 **Discussion of Results:**
 1. **Target Language Fluency:** Despite the premature halt at Epoch 8, the GPT decoder generates highly fluent, syntactically correct Marathi text. This confirms that the causal pretraining phase successfully captured the target language distribution.
