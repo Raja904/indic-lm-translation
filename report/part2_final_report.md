@@ -105,6 +105,3 @@ The assignment required utilizing the pretrained models for translation. Because
 Given a larger compute budget, the immediate next step is to freeze the pretrained BERT and GPT weights and train a dedicated Cross-Attention layer (or fine-tune the linear projection bridge) on the ~215,000 sentence parallel Hindi-Marathi corpus for 5-10 epochs.
 
 ---
-
-*Final Checkpoints Used: `bert_epoch_5.pt` and `gpt_epoch_8.pt`*
-*Inference Output: `results/part2/inference_output.txt`*
